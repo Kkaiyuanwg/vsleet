@@ -34,8 +34,8 @@ Thanks for [@yihong0618](https://github.com/yihong0618) provided a workaround wh
 
 ## Requirements
 
-- [VS Code 1.30.1+](https://code.visualstudio.com/)
-- [Node.js 10+](https://nodejs.org)
+- [VS Code 1.90+](https://code.visualstudio.com/)
+- [Node.js 18+](https://nodejs.org)
   > NOTE: Please make sure that `Node` is in your `PATH` environment variable. You can also use the setting `leetcode.nodePath` to specify the location of your `Node.js` executable.
 
 ## Quick Start
@@ -110,6 +110,16 @@ Thanks for [@yihong0618](https://github.com/yihong0618) provided a workaround wh
 
 ---
 
+### Test & Submit results
+
+Both `Test` and `Submit` open a result panel that shows **every test case separately**: its input, your output, the expected output and a pass/fail mark. Anything your code prints (`print`, `console.log`, `System.out`, ...) is shown as a **Stdout** console block under the case that produced it.
+
+- Runs stay in a history bar at the top of the panel, so a new run no longer hides the previous ones.
+- Hover a block to copy it. The same information is written to the **LeetCode** output channel (disable with `leetcode.result.logToOutputChannel`).
+- On WSL, or if the structured runner cannot start, the extension falls back to the plain CLI output; stdout of several cases may then be merged into one block.
+
+* * *
+
 ### Search problems by Keywords
 
 <p align="center">
@@ -146,6 +156,7 @@ Thanks for [@yihong0618](https://github.com/yihong0618) provided a workaround wh
 | `leetcode.useEndpointTranslation` | Use endpoint's translation (if available)                                                                                                                                                                                                                     | `true`             |
 | `leetcode.colorizeProblems`       | Add difficulty badge and colorize problems files in explorer tree                                                                                                                                                                                             | `true`             |
 | `leetcode.problems.sortStrategy`  | Specify sorting strategy for problems list                                                                                                                                                                                                                    | `None`             |
+| `leetcode.result.logToOutputChannel` | Also write every test/submit result (cases, expected output and stdout) to the `LeetCode` output channel. | `true` |
 | `leetcode.allowReportData`        | Allow LeetCode to report anonymous usage data to improve the product. list                                                                                                                                                                                    | `true`             |
 
 ## Want Help?

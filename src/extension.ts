@@ -104,7 +104,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         await leetCodeManager.getLoginStatus();
         vscode.window.registerUriHandler({ handleUri: leetCodeManager.handleUriSignIn });
     } catch (error) {
-        leetCodeChannel.appendLine(error.toString());
+        leetCodeChannel.appendLine(String(error));
         promptForOpenOutputChannel("Extension initialization failed. Please open output channel for details.", DialogType.error);
     }
 }

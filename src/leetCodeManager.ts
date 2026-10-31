@@ -33,7 +33,7 @@ class LeetCodeManager extends EventEmitter {
             const result: string = await leetCodeExecutor.getUserInfo();
             this.currentUser = this.tryParseUserName(result);
             this.userStatus = UserStatus.SignedIn;
-        } catch (error) {
+        } catch {
             this.currentUser = undefined;
             this.userStatus = UserStatus.SignedOut;
             globalState.removeAll();
@@ -57,7 +57,7 @@ class LeetCodeManager extends EventEmitter {
 
     public async handleUriSignIn(uri: vscode.Uri): Promise<void> {
         try {
-            await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification }, async (progress: vscode.Progress<{}>) => {
+            await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification }, async (progress: vscode.Progress<{ message?: string }>) => {
                 progress.report({ message: "Fetching user data..." });
                 const queryParams = parseQuery(uri.query);
                 const cookie = queryParams["cookie"];
@@ -69,7 +69,7 @@ class LeetCodeManager extends EventEmitter {
                 await this.updateUserStatusWithCookie(cookie)
 
             });
-        } catch (error) {
+        } catch {
             promptForOpenOutputChannel(`Failed to log in. Please open the output channel for details`, DialogType.error);
         }
     }
@@ -117,7 +117,7 @@ class LeetCodeManager extends EventEmitter {
             await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: "Fetching user data..." }, async () => {
                 await this.handleInputCookieSignIn()
             });
-        } catch (error) {
+        } catch {
             promptForOpenOutputChannel(`Failed to log in. Please open the output channel for details`, DialogType.error);
         }
     }
@@ -130,7 +130,7 @@ class LeetCodeManager extends EventEmitter {
             this.userStatus = UserStatus.SignedOut;
             globalState.removeAll();
             this.emit("statusChanged");
-        } catch (error) {
+        } catch {
             // swallow the error when sign out.
         }
     }
@@ -163,10 +163,9 @@ class LeetCodeManager extends EventEmitter {
         }
     }
 
-    public setCookieToCli(cookie: string, name: string): Promise<void> {
-        return new Promise(async (resolve: (res: void) => void, reject: (e: Error) => void) => {
-            const leetCodeBinaryPath: string = await leetCodeExecutor.getLeetCodeBinaryPath();
-
+    public async setCookieToCli(cookie: string, name: string): Promise<void> {
+        const leetCodeBinaryPath: string = await leetCodeExecutor.getLeetCodeBinaryPath();
+        return new Promise((resolve: (res: void) => void, reject: (e: Error) => void) => {
             const childProc: cp.ChildProcess = wsl.useWsl()
                 ? cp.spawn("wsl", [leetCodeExecutor.node, leetCodeBinaryPath, "user", loginArgsMapping.get("Cookie") ?? ""], {
                       shell: true,

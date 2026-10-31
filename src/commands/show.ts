@@ -3,7 +3,7 @@
 
 import * as _ from "lodash";
 import * as path from "path";
-import * as unescapeJS from "unescape-js";
+import unescapeJS from "unescape-js";
 import * as vscode from "vscode";
 import { explorerNodeManager } from "../explorer/explorerNodeManager";
 import { LeetCodeNode } from "../explorer/LeetCodeNode";
@@ -119,7 +119,7 @@ export async function showSolution(input: LeetCodeNode | vscode.Uri): Promise<vo
         const solution: string = await leetCodeExecutor.showSolution(problemInput, language, needTranslation);
         leetCodeSolutionProvider.show(unescapeJS(solution));
     } catch (error) {
-        leetCodeChannel.appendLine(error.toString());
+        leetCodeChannel.appendLine(String(error));
         await promptForOpenOutputChannel("Failed to fetch the top voted solution. Please open the output channel for details.", DialogType.error);
     }
 }
@@ -217,20 +217,17 @@ async function showDescriptionView(node: IProblem): Promise<void> {
     return previewProblem(node, vscode.workspace.getConfiguration("leetcode").get<boolean>("enableSideMode", true));
 }
 async function parseProblemsToPicks(p: Promise<IProblem[]>): Promise<Array<IQuickItemEx<IProblem>>> {
-    return new Promise(async (resolve: (res: Array<IQuickItemEx<IProblem>>) => void): Promise<void> => {
-        const picks: Array<IQuickItemEx<IProblem>> = (await p).map((problem: IProblem) =>
-            Object.assign(
-                {},
-                {
-                    label: `${parseProblemDecorator(problem.state, problem.locked)}${problem.id}.${problem.name}`,
-                    description: "",
-                    detail: `AC rate: ${problem.passRate}, Difficulty: ${problem.difficulty}`,
-                    value: problem,
-                }
-            )
-        );
-        resolve(picks);
-    });
+    return (await p).map((problem: IProblem) =>
+        Object.assign(
+            {},
+            {
+                label: `${parseProblemDecorator(problem.state, problem.locked)}${problem.id}.${problem.name}`,
+                description: "",
+                detail: `AC rate: ${problem.passRate}, Difficulty: ${problem.difficulty}`,
+                value: problem,
+            }
+        )
+    );
 }
 
 function parseProblemDecorator(state: ProblemState, locked: boolean): string {
@@ -282,10 +279,11 @@ async function resolveRelativePath(relativePath: string, node: IProblem, selecte
                 return tag;
             case "company":
                 return company;
-            default:
+            default: {
                 const errorMsg: string = `The config '${placeholder}' is not supported.`;
                 leetCodeChannel.appendLine(errorMsg);
                 throw new Error(errorMsg);
+            }
         }
     });
 }

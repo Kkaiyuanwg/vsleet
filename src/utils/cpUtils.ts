@@ -41,22 +41,36 @@ export async function executeCommand(command: string, args: string[], options: c
 
 export async function executeCommandWithProgress(message: string, command: string, args: string[], options: cp.SpawnOptions = { shell: true }): Promise<string> {
     let result: string = "";
-    await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification }, async (p: vscode.Progress<{}>) => {
-        return new Promise<void>(async (resolve: () => void, reject: (e: Error) => void): Promise<void> => {
-            p.report({ message });
-            try {
-                result = await executeCommand(command, args, options);
-                resolve();
-            } catch (e) {
-                reject(e);
-            }
-        });
+    await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification }, async (p: vscode.Progress<{ message?: string }>) => {
+        p.report({ message });
+        result = await executeCommand(command, args, options);
     });
     return result;
 }
 
+/**
+ * Run the structured runner (resources/lc-run.js). Unlike executeCommand this does not treat the word "ERROR"
+ * in the output as a failure (user code may legitimately print it) and does not echo the JSON payload to the
+ * output channel; only stderr is forwarded. The caller decides success from the payload itself.
+ */
+export async function executeRunner(command: string, args: string[], message: string): Promise<string> {
+    let stdout: string = "";
+    await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification }, async (p: vscode.Progress<{ message?: string }>) => {
+        p.report({ message });
+        stdout = await new Promise<string>((resolve: (out: string) => void, reject: (e: Error) => void): void => {
+            const child: cp.ChildProcess = cp.spawn(command, args, { shell: true, env: createEnvOption() });
+            let out: string = "";
+            child.stdout?.on("data", (data: string | Buffer) => { out = out.concat(data.toString()); });
+            child.stderr?.on("data", (data: string | Buffer) => leetCodeChannel.append(data.toString()));
+            child.on("error", reject);
+            child.on("close", () => resolve(out));
+        });
+    });
+    return stdout;
+}
+
 // clone process.env and add http proxy
-export function createEnvOption(): {} {
+export function createEnvOption(): NodeJS.ProcessEnv {
     const proxy: string | undefined = getHttpAgent();
     if (proxy) {
         const env: any = Object.create(process.env);

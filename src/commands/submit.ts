@@ -3,7 +3,7 @@
 
 import * as vscode from "vscode";
 import { leetCodeTreeDataProvider } from "../explorer/LeetCodeTreeDataProvider";
-import { leetCodeExecutor } from "../leetCodeExecutor";
+import { leetCodeExecutor, RunnerError } from "../leetCodeExecutor";
 import { leetCodeManager } from "../leetCodeManager";
 import { DialogType, promptForOpenOutputChannel, promptForSignIn } from "../utils/uiUtils";
 import { getActiveFilePath } from "../utils/workspaceUtils";
@@ -21,10 +21,10 @@ export async function submitSolution(uri?: vscode.Uri): Promise<void> {
     }
 
     try {
-        const result: string = await leetCodeExecutor.submitSolution(filePath);
-        leetCodeSubmissionProvider.show(result);
+        leetCodeSubmissionProvider.show(await leetCodeExecutor.runSolution("submit", filePath));
     } catch (error) {
-        await promptForOpenOutputChannel("Failed to submit the solution. Please open the output channel for details.", DialogType.error);
+        const reason: string = error instanceof RunnerError ? ` ${error.message}.` : "";
+        await promptForOpenOutputChannel(`Failed to submit the solution.${reason} Please open the output channel for details.`, DialogType.error);
         return;
     }
 

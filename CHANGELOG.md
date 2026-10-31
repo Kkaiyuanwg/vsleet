@@ -3,6 +3,29 @@ All notable changes to the "leetcode" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.19.0]
+### Added
+- New result panel for **Test** and **Submit**: one card per test case (input, output, expected, pass/fail) and a **Stdout** console block per case. Previous runs are kept in a history bar instead of being replaced.
+- Results (including stdout) are also written to the `LeetCode` output channel (`leetcode.result.logToOutputChannel`).
+- `resources/lc-run.js`: a structured runner on top of the CLI's own core that keeps the raw judge response (per-case answers and stdout). Falls back to the plain CLI text on WSL or on any runner problem.
+- Unit tests (`npm test`) for result parsing/rendering and the runner.
+
+### Changed
+- Raised minimum requirements: VS Code 1.90+, Node.js 18+.
+- Build: extension is now bundled with esbuild into `dist/extension.js` (TypeScript 5, `strict` mode). `tsc` is only used for type-checking.
+- Replaced deprecated TSLint with ESLint 9 + typescript-eslint.
+- Upgraded dependencies: axios, fs-extra 11, highlight.js 11, markdown-it 14, @types/node 20, @types/vscode 1.90.
+- Only `vsc-leetcode-cli` is shipped as a runtime dependency; the VSIX is ~35% smaller.
+- Removed the explicit `activationEvents` list (inferred from contributions since VS Code 1.74).
+- CI: actions/checkout@v4, setup-node@v4, Node 20, `npm ci`, Linux/Windows/macOS matrix, VSIX uploaded as artifact.
+
+### Fixed
+- A test run was reported as failed when the program printed the word `ERROR` to stdout.
+- Test progress said "Submitting to LeetCode..."; it now says it is running test cases.
+- `npm install` failed because `package-lock.json` pointed to a dead npm mirror (`r2.cnpmjs.org`); the lockfile was regenerated.
+- Session picker hung forever when listing sessions failed (Promise never settled).
+- Removed `async` Promise executors that could swallow exceptions.
+
 ## [0.18.4]
 ### Added
 - change graphql path

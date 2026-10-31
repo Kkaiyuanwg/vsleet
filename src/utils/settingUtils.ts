@@ -66,3 +66,7 @@ export interface IDescriptionConfiguration {
     showInComment: boolean;
     showInWebview: boolean;
 }
+
+export function shouldLogRunsToOutputChannel(): boolean {
+    return getWorkspaceConfiguration().get<boolean>("result.logToOutputChannel", true);
+}

@@ -5,14 +5,22 @@ import * as cp from "child_process";
 import * as fse from "fs-extra";
 import * as os from "os";
 import * as path from "path";
-import * as requireFromString from "require-from-string";
+import requireFromString from "require-from-string";
 import { ExtensionContext } from "vscode";
 import { ConfigurationChangeEvent, Disposable, MessageItem, window, workspace, WorkspaceConfiguration } from "vscode";
+import { leetCodeChannel } from "./leetCodeChannel";
 import { Endpoint, IProblem, leetcodeHasInited, supportedPlugins } from "./shared";
-import { executeCommand, executeCommandWithProgress } from "./utils/cpUtils";
+import { executeCommand, executeCommandWithProgress, executeRunner } from "./utils/cpUtils";
+import { buildRunResult, IRunnerOutput, IRunResult, parseCliText, RunKind } from "./utils/resultUtils";
+import { quoteTestCase } from "./utils/testCaseUtils";
 import { DialogOptions, openUrl } from "./utils/uiUtils";
 import * as wsl from "./utils/wslUtils";
 import { toWslPath, useWsl } from "./utils/wslUtils";
+
+const RUNNER_MARK: string = "@@LC_RESULT@@";
+
+/** The judge/CLI reported a real error (not logged in, network, ...). There is no point in falling back. */
+export class RunnerError extends Error { }
 
 class LeetCodeExecutor implements Disposable {
     private leetCodeRootPath: string;
@@ -20,7 +28,7 @@ class LeetCodeExecutor implements Disposable {
     private configurationChangeListener: Disposable;
 
     constructor() {
-        this.leetCodeRootPath = path.join(__dirname, "..", "..", "node_modules", "vsc-leetcode-cli");
+        this.leetCodeRootPath = path.join(__dirname, "..", "node_modules", "vsc-leetcode-cli");
         this.nodeExecutable = this.getNodePath();
         this.configurationChangeListener = workspace.onDidChangeConfiguration((event: ConfigurationChangeEvent) => {
             if (event.affectsConfiguration("leetcode.nodePath")) {
@@ -53,7 +61,7 @@ class LeetCodeExecutor implements Disposable {
         }
         try {
             await this.executeCommandEx(this.nodeExecutable, ["-v"]);
-        } catch (error) {
+        } catch {
             const choice: MessageItem | undefined = await window.showErrorMessage(
                 "LeetCode extension needs Node.js installed in environment path",
                 DialogOptions.open,
@@ -66,7 +74,7 @@ class LeetCodeExecutor implements Disposable {
         for (const plugin of supportedPlugins) {
             try { // Check plugin
                 await this.executeCommandEx(this.nodeExecutable, [await this.getLeetCodeBinaryPath(), "plugin", "-e", plugin]);
-            } catch (error) { // Remove old cache that may cause the error download plugin and activate
+            } catch { // Remove old cache that may cause the error download plugin and activate
                 await this.removeOldCache();
                 await this.executeCommandEx(this.nodeExecutable, [await this.getLeetCodeBinaryPath(), "plugin", "-i", plugin]);
             }
@@ -162,12 +170,35 @@ class LeetCodeExecutor implements Disposable {
         return await this.executeCommandEx(this.nodeExecutable, [await this.getLeetCodeBinaryPath(), "session", "-d", id]);
     }
 
+    /**
+     * Test or submit a solution and return a structured result with one entry per test case.
+     * Uses resources/lc-run.js; falls back to parsing the plain CLI text on WSL or if the runner is unusable.
+     */
+    public async runSolution(kind: RunKind, filePath: string, testcase?: string): Promise<IRunResult> {
+        const ctx: { kind: RunKind, fileName: string } = { kind, fileName: path.basename(filePath) };
+        if (!wsl.useWsl()) {
+            try {
+                return buildRunResult(await this.runStructured(kind, filePath, testcase), ctx);
+            } catch (error) {
+                if (error instanceof RunnerError) {
+                    throw error;
+                }
+                leetCodeChannel.appendLine(`[Warn] Structured runner unavailable (${String(error)}), falling back to plain CLI output.`);
+            }
+        }
+        const raw: string = kind === "submit"
+            ? await this.submitSolution(filePath)
+            : await this.testSolution(filePath, testcase ? quoteTestCase(testcase) : undefined);
+        return parseCliText(raw, ctx);
+    }
+
     public async submitSolution(filePath: string): Promise<string> {
         try {
             return await this.executeCommandWithProgressEx("Submitting to LeetCode...", this.nodeExecutable, [await this.getLeetCodeBinaryPath(), "submit", `"${filePath}"`]);
         } catch (error) {
-            if (error.result) {
-                return error.result;
+            const result: unknown = (error as { result?: unknown }).result;
+            if (typeof result === "string" && result) {
+                return result;
             }
             throw error;
         }
@@ -175,9 +206,9 @@ class LeetCodeExecutor implements Disposable {
 
     public async testSolution(filePath: string, testString?: string): Promise<string> {
         if (testString) {
-            return await this.executeCommandWithProgressEx("Submitting to LeetCode...", this.nodeExecutable, [await this.getLeetCodeBinaryPath(), "test", `"${filePath}"`, "-t", `${testString}`]);
+            return await this.executeCommandWithProgressEx("Running test cases on LeetCode...", this.nodeExecutable, [await this.getLeetCodeBinaryPath(), "test", `"${filePath}"`, "-t", `${testString}`]);
         }
-        return await this.executeCommandWithProgressEx("Submitting to LeetCode...", this.nodeExecutable, [await this.getLeetCodeBinaryPath(), "test", `"${filePath}"`]);
+        return await this.executeCommandWithProgressEx("Running test cases on LeetCode...", this.nodeExecutable, [await this.getLeetCodeBinaryPath(), "test", `"${filePath}"`]);
     }
 
     public async switchEndpoint(endpoint: string): Promise<string> {
@@ -234,6 +265,36 @@ class LeetCodeExecutor implements Disposable {
             return await executeCommandWithProgress(message, "wsl", [command].concat(args), options);
         }
         return await executeCommandWithProgress(message, command, args, options);
+    }
+
+    private async runStructured(kind: RunKind, filePath: string, testcase?: string): Promise<IRunnerOutput> {
+        const runner: string = path.join(this.leetCodeRootPath, "..", "..", "resources", "lc-run.js");
+        const args: string[] = [`"${runner}"`, `"${this.leetCodeRootPath}"`, kind, `"${filePath}"`];
+        let caseFile: string | undefined;
+        try {
+            if (testcase) {
+                // a file avoids every shell quoting problem of passing a multi-line test case as an argument
+                caseFile = path.join(os.tmpdir(), `vscode-leetcode-case-${process.pid}-${Date.now()}.txt`);
+                await fse.writeFile(caseFile, testcase, "utf8");
+                args.push(`"${caseFile}"`);
+            }
+            const message: string = kind === "submit" ? "Submitting to LeetCode..." : "Running test cases on LeetCode...";
+            const stdout: string = await executeRunner(this.nodeExecutable, args, message);
+            const line: string | undefined = stdout.split(/\r?\n/).reverse().find((l: string) => l.startsWith(RUNNER_MARK));
+            if (!line) {
+                throw new Error("the runner produced no result");
+            }
+            const out: IRunnerOutput = JSON.parse(line.slice(RUNNER_MARK.length));
+            if (out.error) {
+                leetCodeChannel.appendLine(`[Error] ${out.error}`);
+                throw out.internal ? new Error(out.error) : new RunnerError(out.error);
+            }
+            return out;
+        } finally {
+            if (caseFile) {
+                await fse.remove(caseFile).catch(() => undefined);
+            }
+        }
     }
 
     private async removeOldCache(): Promise<void> {

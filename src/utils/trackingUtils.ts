@@ -85,7 +85,9 @@ class TrackData implements ITrackData {
     public report = (reportItems: IReportData | IReportData[]) => {
         if (!getAllowReportDataConfig()) return;
 
-        this.sendTimer && clearTimeout(this.sendTimer);
+        if (this.sendTimer) {
+            clearTimeout(this.sendTimer);
+        }
 
         if (!Array.isArray(reportItems)) {
             reportItems = [reportItems];
@@ -119,7 +121,7 @@ class TrackData implements ITrackData {
                     "x-timezone": getTimeZone(),
                 },
             });
-        } catch (e) {
+        } catch {
             this.reportCache = this.reportCache.concat(JSON.parse(dataList));
         } finally {
             this.isSubmit = false;

@@ -145,7 +145,7 @@ export const urlsCn = {
     authLoginUrl: `https://leetcode.cn/authorize-login/${protocol}/?path=leetcode.vscode-leetcode`,
 };
 
-export const getUrl = (key: string) => {
+export const getUrl = (key: keyof typeof urls): string => {
     const leetCodeConfig: vscode.WorkspaceConfiguration = vscode.workspace.getConfiguration("leetcode");
     const point = leetCodeConfig.get<string>("endpoint", Endpoint.LeetCode);
     switch (point) {

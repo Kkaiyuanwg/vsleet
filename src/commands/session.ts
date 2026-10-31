@@ -49,30 +49,30 @@ export async function manageSessions(): Promise<void> {
         await leetCodeExecutor.enableSession((choice.value as ISession).id);
         vscode.window.showInformationMessage(`Successfully switched to session '${choice.label}'.`);
         await vscode.commands.executeCommand("leetcode.refreshExplorer");
-    } catch (error) {
+    } catch {
         await promptForOpenOutputChannel("Failed to switch session. Please open the output channel for details.", DialogType.error);
     }
 }
 
 async function parseSessionsToPicks(includeOperations: boolean = false): Promise<Array<IQuickItemEx<ISession | string>>> {
-    return new Promise(async (resolve: (res: Array<IQuickItemEx<ISession | string>>) => void): Promise<void> => {
-        try {
-            const sessions: ISession[] = await getSessionList();
-            const picks: Array<IQuickItemEx<ISession | string>> = sessions.map((s: ISession) => Object.assign({}, {
-                label: `${s.active ? "$(check) " : ""}${s.name}`,
-                description: s.active ? "Active" : "",
-                detail: `AC Questions: ${s.acQuestions}, AC Submits: ${s.acSubmits}`,
-                value: s,
-            }));
+    try {
+        const sessions: ISession[] = await getSessionList();
+        const picks: Array<IQuickItemEx<ISession | string>> = sessions.map((s: ISession) => Object.assign({}, {
+            label: `${s.active ? "$(check) " : ""}${s.name}`,
+            description: s.active ? "Active" : "",
+            detail: `AC Questions: ${s.acQuestions}, AC Submits: ${s.acSubmits}`,
+            value: s,
+        }));
 
-            if (includeOperations) {
-                picks.push(...parseSessionManagementOperations());
-            }
-            resolve(picks);
-        } catch (error) {
-            return await promptForOpenOutputChannel("Failed to list sessions. Please open the output channel for details.", DialogType.error);
+        if (includeOperations) {
+            picks.push(...parseSessionManagementOperations());
         }
-    });
+        return picks;
+    } catch {
+        // Previously this promise never settled on failure, leaving the quick pick spinning forever.
+        await promptForOpenOutputChannel("Failed to list sessions. Please open the output channel for details.", DialogType.error);
+        return [];
+    }
 }
 
 function parseSessionManagementOperations(): Array<IQuickItemEx<string>> {
@@ -100,7 +100,7 @@ async function createSession(): Promise<void> {
     try {
         await leetCodeExecutor.createSession(session);
         vscode.window.showInformationMessage("New session created, you can switch to it by clicking the status bar.");
-    } catch (error) {
+    } catch {
         await promptForOpenOutputChannel("Failed to create session. Please open the output channel for details.", DialogType.error);
     }
 }

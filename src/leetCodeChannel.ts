@@ -14,8 +14,8 @@ class LeetCodeChannel implements vscode.Disposable {
         this.channel.append(message);
     }
 
-    public show(): void {
-        this.channel.show();
+    public show(preserveFocus: boolean = false): void {
+        this.channel.show(preserveFocus);
     }
 
     public dispose(): void {

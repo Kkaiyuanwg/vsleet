@@ -16,7 +16,7 @@ export async function addFavorite(node: LeetCodeNode): Promise<void> {
         if (hasStarShortcut()) {
             customCodeLensProvider.refresh();
         }
-    } catch (error) {
+    } catch {
         await promptForOpenOutputChannel("Failed to add the problem to favorite. Please open the output channel for details.", DialogType.error);
     }
 }
@@ -28,7 +28,7 @@ export async function removeFavorite(node: LeetCodeNode): Promise<void> {
         if (hasStarShortcut()) {
             customCodeLensProvider.refresh();
         }
-    } catch (error) {
+    } catch {
         await promptForOpenOutputChannel("Failed to remove the problem from favorite. Please open the output channel for details.", DialogType.error);
     }
 }

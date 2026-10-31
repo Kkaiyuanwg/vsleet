@@ -15,10 +15,10 @@ export type UserDataType = {
 };
 
 class GlobalState {
-    private context: vscode.ExtensionContext;
-    private _state: vscode.Memento;
-    private _cookie: string;
-    private _userStatus: UserDataType;
+    private context!: vscode.ExtensionContext;
+    private _state!: vscode.Memento;
+    private _cookie!: string;
+    private _userStatus!: UserDataType;
 
     public initialize(context: vscode.ExtensionContext): void {
         this.context = context;

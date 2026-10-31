@@ -36,7 +36,7 @@ export async function switchEndpoint(): Promise<void> {
         await leetCodeExecutor.switchEndpoint(endpoint);
         await leetCodeConfig.update("endpoint", endpoint, true /* UserSetting */);
         vscode.window.showInformationMessage(`Switched the endpoint to ${endpoint}`);
-    } catch (error) {
+    } catch {
         await promptForOpenOutputChannel("Failed to switch endpoint. Please open the output channel for details.", DialogType.error);
     }
 
@@ -44,7 +44,7 @@ export async function switchEndpoint(): Promise<void> {
         await vscode.commands.executeCommand("leetcode.signout");
         await deleteCache();
         await promptForSignIn();
-    } catch (error) {
+    } catch {
         await promptForOpenOutputChannel("Failed to sign in. Please open the output channel for details.", DialogType.error);
     }
 }

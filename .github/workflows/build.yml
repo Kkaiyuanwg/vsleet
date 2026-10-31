@@ -7,44 +7,39 @@ on:
     branches: [master]
 
 jobs:
-  linux:
-    name: Linux
-    runs-on: ubuntu-latest
+  build:
+    name: ${{ matrix.os }} / Node ${{ matrix.node }}
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        node: [20]
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
-      - name: Setup Node.js environment
-        uses: actions/setup-node@v2
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: 14
+          node-version: ${{ matrix.node }}
+          cache: npm
 
-      - name: Install Node.js modules
-        run: npm install
+      - name: Install dependencies
+        run: npm ci
 
       - name: Lint
         run: npm run lint
 
-      - name: VSCE Packge
+      - name: Typecheck and bundle
+        run: npm run package
+
+      - name: Package VSIX
         run: npx vsce package
 
-  windows:
-    name: Windows
-    runs-on: windows-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Setup Node.js environment
-        uses: actions/setup-node@v2
+      - name: Upload VSIX
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v4
         with:
-          node-version: 14
-
-      - name: Install Node.js modules
-        run: npm install
-
-      - name: Lint
-        run: npm run lint
-
-      - name: VSCE Packge
-        run: npx vsce package
+          name: vsix
+          path: "*.vsix"

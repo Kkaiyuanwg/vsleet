@@ -9,8 +9,8 @@ import { markdownEngine } from "./markdownEngine";
 
 class LeetCodePreviewProvider extends LeetCodeWebview {
     protected readonly viewType: string = "leetcode.preview";
-    private node: IProblem;
-    private description: IDescription;
+    private node!: IProblem;
+    private description!: IDescription;
     private sideMode: boolean = false;
 
     public isSideMode(): boolean {

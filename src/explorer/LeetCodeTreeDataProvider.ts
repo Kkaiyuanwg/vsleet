@@ -11,7 +11,7 @@ import { LeetCodeNode } from "./LeetCodeNode";
 import { globalState } from "../globalState";
 
 export class LeetCodeTreeDataProvider implements vscode.TreeDataProvider<LeetCodeNode> {
-    private context: vscode.ExtensionContext;
+    private context!: vscode.ExtensionContext;
 
     private onDidChangeTreeDataEvent: vscode.EventEmitter<LeetCodeNode | undefined | null> = new vscode.EventEmitter<
         LeetCodeNode | undefined | null

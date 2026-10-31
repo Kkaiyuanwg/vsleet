@@ -3,13 +3,12 @@
 
 import * as fse from "fs-extra";
 import * as vscode from "vscode";
-import { leetCodeExecutor } from "../leetCodeExecutor";
+import { leetCodeExecutor, RunnerError } from "../leetCodeExecutor";
 import { leetCodeManager } from "../leetCodeManager";
 import { IQuickItemEx, UserStatus } from "../shared";
-import { isWindows, usingCmd } from "../utils/osUtils";
+import { IRunResult } from "../utils/resultUtils";
 import { DialogType, promptForOpenOutputChannel, showFileSelectDialog } from "../utils/uiUtils";
 import { getActiveFilePath } from "../utils/workspaceUtils";
-import * as wsl from "../utils/wslUtils";
 import { leetCodeSubmissionProvider } from "../webview/leetCodeSubmissionProvider";
 
 export async function testSolution(uri?: vscode.Uri): Promise<void> {
@@ -48,12 +47,12 @@ export async function testSolution(uri?: vscode.Uri): Promise<void> {
             return;
         }
 
-        let result: string | undefined;
+        let result: IRunResult | undefined;
         switch (choice.value) {
             case ":default":
-                result = await leetCodeExecutor.testSolution(filePath);
+                result = await leetCodeExecutor.runSolution("test", filePath);
                 break;
-            case ":direct":
+            case ":direct": {
                 const testString: string | undefined = await vscode.window.showInputBox({
                     prompt: "Enter the test cases.",
                     validateInput: (s: string): string | undefined => s && s.trim() ? undefined : "Test case must not be empty.",
@@ -61,20 +60,23 @@ export async function testSolution(uri?: vscode.Uri): Promise<void> {
                     ignoreFocusOut: true,
                 });
                 if (testString) {
-                    result = await leetCodeExecutor.testSolution(filePath, parseTestString(testString));
+                    // the input box takes a literal "\\n" as the separator between lines
+                    result = await leetCodeExecutor.runSolution("test", filePath, testString.replace(/\\n/g, "\n"));
                 }
                 break;
-            case ":file":
+            }
+            case ":file": {
                 const testFile: vscode.Uri[] | undefined = await showFileSelectDialog(filePath);
                 if (testFile && testFile.length) {
                     const input: string = (await fse.readFile(testFile[0].fsPath, "utf-8")).trim();
                     if (input) {
-                        result = await leetCodeExecutor.testSolution(filePath, parseTestString(input.replace(/\r?\n/g, "\\n")));
+                        result = await leetCodeExecutor.runSolution("test", filePath, input);
                     } else {
                         vscode.window.showErrorMessage("The selected test file must not be empty.");
                     }
                 }
                 break;
+            }
             default:
                 break;
         }
@@ -83,20 +85,7 @@ export async function testSolution(uri?: vscode.Uri): Promise<void> {
         }
         leetCodeSubmissionProvider.show(result);
     } catch (error) {
-        await promptForOpenOutputChannel("Failed to test the solution. Please open the output channel for details.", DialogType.error);
-    }
-}
-
-function parseTestString(test: string): string {
-    if (wsl.useWsl() || !isWindows()) {
-        return `'${test}'`;
-    }
-
-    // In windows and not using WSL
-    if (usingCmd()) {
-        return `"${test.replace(/"/g, '\\"')}"`;
-    } else {
-        // Assume using PowerShell
-        return `'${test.replace(/"/g, '\\"')}'`;
+        const reason: string = error instanceof RunnerError ? ` ${error.message}.` : "";
+        await promptForOpenOutputChannel(`Failed to test the solution.${reason} Please open the output channel for details.`, DialogType.error);
     }
 }

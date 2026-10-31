@@ -64,3 +64,7 @@ out
 
 # Mac
 .DS_Store
+
+dist
+*.vsix
+out-test/

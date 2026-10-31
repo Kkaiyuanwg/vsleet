@@ -9,8 +9,8 @@ import { markdownEngine } from "./markdownEngine";
 class LeetCodeSolutionProvider extends LeetCodeWebview {
 
     protected readonly viewType: string = "leetcode.solution";
-    private problemName: string;
-    private solution: Solution;
+    private problemName!: string;
+    private solution!: Solution;
 
     public show(solutionString: string): void {
         this.solution = this.parseSolution(solutionString);
